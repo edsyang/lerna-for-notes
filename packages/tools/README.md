@@ -264,7 +264,7 @@ index.bundle.js
 utils.bundle.js
 ```
 
-4. 配置 html-webpack-plugin
+4. 配置 [html-webpack-plugin](https://github.com/jantimon/html-webpack-plugin)，其目的是为了打包自动生成一个新的 html 文件，其中的 bundle 都会自动放到 html 中
 
 ```shell
 $ npm i html-webpack-plugin -D
@@ -389,3 +389,123 @@ import(/* webpackPreload: true */ 'ChartingLibrary');
 
 ### 1.7 缓存
 
+1. 在 output.filename 中通过 [模版标识符 template strings](https://webpack.docschina.org/configuration/output/#template-strings) 来输出文件的文件名
+
+```js
+// webpack.config.js
+output: {
+  // ...
+  filename: '[name].[contenthash].js', // 打包后会生成类似于 index.7e2c49a622975ebd9b7e.js 的文件
+}
+```
+
+2. 通过 splitTrunkPlugin 和 [optimization.runtimeChunk](https://webpack.docschina.org/configuration/optimization/#optimizationruntimechunk) 将 runtime 拆成一个单独的 chunk 
+
+```js
+// webpack.config.js
+optimization: {
+  runtimeChunk: 'single', // multiple，分割为单个还是多个，或者是 string 模式，来自定义名称
+  // runtimeChunk: {
+  //  name: (entrypoint) => `runtime-${entrypoint.name}`, // 这个名称和单独使用 single/multiple 相同
+  // },
+  // 这里代码分割主要是为了将三方库单独抽成 vender trunk 中，来实现缓存机制
+  splitChunks: {
+    cacheGroups: {
+      vendor: {
+        test: /[\\/]node_modules[\\/]/,
+        name: 'vendors',
+        chunks: 'all',
+      },
+    },
+  },
+},
+```
+
+3. 到这时候，全部代码都已经拆分且输出文件，但是每次打包的时候 vender 也会随着打包发生变化，即使是在没有改动（引入/删除新的三方包）的情况下，这时候需要 [optimization.moduleIds](https://webpack.docschina.org/configuration/optimization/#optimizationmoduleids) 属性来规定 webpack 打包时选择模块 id 时需要使用哪种算法
+
+```js
+// webpack.config.js
+optimization: {
+  moduleIds: 'deterministic', // 这时候重新打包时，vender 的 hash 值不会发生变化
+}
+```
+
+### 1.8 创建 library
+
+1. 如果是本地文件想要暴露从入口导出的内容，需要使用到 [outputlibrary](https://webpack.docschina.org/configuration/output/#outputlibrary)
+
+创建一个 js 文件（custom-library），其中有些方法
+
+这是需要在 webpack 中进行配置
+
+```js
+// webpack.config.js
+// TODO
+output: {
+  entry: './src/index.js',
+  filename: 'custom-library.js', // 当然，这时候 input 不要使用模版标识符 template strings
+  library: {
+    name: 'webpackNumbers',
+    type: 'umd',
+  },
+}
+```
+
+2. 外部化一些体积较大的三方库，有点类似于将这些库当作 peerDependencies 来处理，通过 external 来处理，这时 webpack 打包就不会将制定的库打包进 vender 中去
+
+```js
+// webpack.config.js
+externals: {
+  lodash: {
+    commonjs: 'lodash',
+    commonjs2: 'lodash',
+    amd: 'lodash',
+    root: '_',
+  },
+},
+```
+
+```diff
+# 使用前
+- asset vendors.3d05fe8319b4ff6d7ed8.js 543 KiB [emitted] [immutable] (name: vendors) (id hint: vendor) 1 related asset
+asset index.74827e04422135bb5b9a.js 10.4 KiB [emitted] [immutable] (name: index) 1 related asset
+asset runtime.767f86f6947115194ca0.js 7.23 KiB [emitted] [immutable] (name: runtime) 1 related asset
+asset custom-library.4d01d5364bc8ebbee7c6.js 2.01 KiB [emitted] [immutable] (name: custom-library) 1 related asset
+asset utils.d3915a2adef65605c670.js 1.3 KiB [emitted] [immutable] (name: utils) 1 related asset
+asset index.html 1000 bytes [emitted]
+
+# 使用后
+asset index.898c567e6391ad5240cf.js 21.5 KiB [emitted] [immutable] (name: index) 1 related asset
+asset runtime.94748d62436eea73cbf8.js 6.48 KiB [emitted] [immutable] (name: runtime) 1 related asset
+asset custom-library.2b22fa8e62132fb5ffac.js 2.27 KiB [emitted] [immutable] (name: custom-library) 1 related asset
+asset utils.939a20093c451e88ed6e.js 1.56 KiB [emitted] [immutable] (name: utils) 1 related asset
+asset index.html 940 bytes [emitted]
+```
+
+### 1.9 环境变量
+
+可以通过命令行 [环境配置](https://webpack.docschina.org/api/cli/#environment-options) 的参数，来传入任意数量的环境变量
+
+```shell
+$ npx webpack --env goal=local --env production --progress
+
+# 或者 scripts 中新增一个
+"env": "webpack --env goal=local --env production --progress"
+```
+
+```diff
+# wbepack.config.js
+- module.exports = {
+-  entry: './src',
+-  // ...
+- }
+# 执行 npm run env 后会得到以下的打印结果
++ module.exports = (env) => {
++   console.log('Goal: ', env.goal); // 'local'
++   console.log('Production: ', env.production); // true
++   return {
++     entry: './src'
++     // ...
++   }
++ }
+```
