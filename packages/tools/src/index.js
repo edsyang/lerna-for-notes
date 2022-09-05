@@ -2,7 +2,7 @@ import _ from 'lodash';
 import { print } from './utils';
 import './index.less';
 
-console.log(_.join(['Another', 'module', 'loaded!'], ' '));
+// console.log(_.join(['Another', 'module', 'loaded!'], ' '));
 
 const run = () => {
   const appendSeconds = document.getElementById('secs');

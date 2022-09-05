@@ -1,9 +1,33 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const { webpack } = require('webpack');
 
 module.exports = (env) => {
   console.log('Goal: ', env.goal); // 'local'
   console.log('Production: ', env.production); // true
+
+  // let webpackConfig;
+  // const baseConfig = {
+  //   // 这里写基础的 webpack 配置
+  // };
+
+  // const mergeConfig = (config) => {
+  //   return Object.assign({}, baseConfig, config);
+  // };
+
+  // if (env.production) {
+  //   // 生产模式
+  //   webpackConfig = merge({
+
+  //   });
+  // } else {
+  //   // 开发模式
+  //   webpackConfig = merge({
+
+  //   });
+  // };
+
+  // return webpackConfig;
 
   return {
     mode: 'development',
