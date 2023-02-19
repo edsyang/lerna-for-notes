@@ -4,6 +4,7 @@ es/
 lib/
 .idea/
 .vscode/
+.history/
 jsconfig.json
 typings.json
 typings/
